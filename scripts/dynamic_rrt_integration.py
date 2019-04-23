@@ -1,4 +1,3 @@
-__author__ = 'Atman'
 #This code is to integrate
 #dynamic checker along with
 #RRT path finder
