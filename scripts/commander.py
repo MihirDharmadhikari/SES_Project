@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-__author__ = "Atharv"
 
 import rospy
 import math
