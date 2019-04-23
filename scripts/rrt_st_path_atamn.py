@@ -1,9 +1,6 @@
 
 #!/usr/bin/env python
 
-"""
-RRT with pre-fed lists of polygons and circles.
-"""
 
 import matplotlib.pyplot as plt
 import random
