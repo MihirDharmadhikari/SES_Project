@@ -98,7 +98,7 @@ def dothis(data):
 #subscriber. scan topic, takes LaserScan and passes it to callBack functions
 def expander_Attempt1():
 	rospy.init_node("object_expander",anonymous=True)
-	sub1=rospy.Subscriber("Expanding",Exp_srv,dothis)
+	sub1=rospy.Service("Expanding",Exp_srv,dothis)
 	rospy.spin()
 
 

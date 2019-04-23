@@ -12,7 +12,7 @@ import copy
 import time
 
 from shapely.geometry import Polygon
-from shapely.geometry import Point
+from shapely.geometry import Point,LineString
 from descartes import PolygonPatch
 
 
@@ -25,7 +25,7 @@ class RRT():
     """
 
     def __init__(self, start, goal, obstacleList, obstacleList2,
-                 randArea, expandDis=1.0, goalSampleRate=15, maxIter=500,mnl=0.1):
+                 randArea, expandDis=1.0, goalSampleRate=15, maxIter=500,mnl=0.01):
         """
         Setting Parameter
         start:Start Position [x,y]
@@ -45,25 +45,18 @@ class RRT():
         self.mnl=mnl
 
     def st_linecheck(self,newNode,d):
-        st_count=0
-        st_nodelist=self.nodeList[:]
-        st_theta=math.atan2(self.end.y-newNode.y,self.end.x-newNode.x)
-        st_distance=d
-        iterations=int(st_distance/self.mnl)
-        st_start=len(st_nodelist)
-        st_cos=math.cos(st_theta)
-        st_sin=math.sin(st_theta)
-        for i in range(1,iterations):
-            st_x = newNode.x + (self.mnl)*i*st_cos
-            st_y = newNode.y + (self.mnl)*i*st_sin
-
-            st_newnode=Node(st_x,st_y)
-            if not self.CollisionCheck(st_newnode, self.obstacleList, self.obstacleList2):
-                st_count=-1
-                break
-        st_count+=1
-        return st_count
-
+        line=LineString([(self.end.x,self.end.y),(newNode.x,newNode.y)])
+        # ob=[Polygon(list(x)) for x in self.obstacleList2[:]]
+        ob = Polygon()
+        for x in self.obstacleList2:
+            ob = Polygon(x) 
+            print "???/////////////////////////"
+            print ob
+            if line.intersects(ob):
+                print "intersects"
+                return 0
+            print "free"
+        return 1
 
 
     def Planning(self, animation=True):
@@ -71,54 +64,58 @@ class RRT():
         Pathplanning
         animation: flag for animation on or off
         """
-
         self.nodeList = [self.start]
-        while True:
-            # Random Sampling
-            if random.randint(0, 100) > self.goalSampleRate:
-                rnd = [random.uniform(self.minrand, self.maxrand), random.uniform(
-                    self.minrand, self.maxrand)]
-            else:
-                rnd = [self.end.x, self.end.y]
+        dx = self.start.x - self.end.x
+        dy = self.start.y - self.end.y
+        d = math.sqrt(dx * dx + dy * dy)
+        if  not self.st_linecheck(self.start,d):
+            while True:
+                # Random Sampling
+                if random.randint(0, 100) > self.goalSampleRate:
+                    rnd = [random.uniform(self.minrand, self.maxrand), random.uniform(
+                        self.minrand, self.maxrand)]
+                else:
+                    rnd = [self.end.x, self.end.y]
 
-            # Find nearest node
-            nind = self.GetNearestListIndex(self.nodeList, rnd)
-            # print(nind)
+                # Find nearest node
+                nind = self.GetNearestListIndex(self.nodeList, rnd)
+                # print(nind)
 
-            # expand tree
-            nearestNode = self.nodeList[nind]
-            theta = math.atan2(rnd[1] - nearestNode.y, rnd[0] - nearestNode.x)    # returns angle made with x-axis by a vector by from nearest node to (x,y)
+                # expand tree
+                nearestNode = self.nodeList[nind]
+                theta = math.atan2(rnd[1] - nearestNode.y, rnd[0] - nearestNode.x)    # returns angle made with x-axis by a vector by from origin to (x,y)
 
-            newNode = copy.deepcopy(nearestNode)
-            newNode.x += self.expandDis * math.cos(theta)
-            newNode.y += self.expandDis * math.sin(theta)
-            newNode.parent = nind
+                newNode = copy.deepcopy(nearestNode)
+                newNode.x += self.expandDis * math.cos(theta)
+                newNode.y += self.expandDis * math.sin(theta)
+                newNode.parent = nind
 
-            if not self.CollisionCheck(node=newNode,obstacleList= self.obstacleList,obstacleList2= self.obstacleList2):
-                continue
+                if not self.CollisionCheck(node=newNode,obstacleList= self.obstacleList,obstacleList2= self.obstacleList2):
+                    continue
 
-            self.nodeList.append(newNode)
-            print("nNodelist:", len(self.nodeList))
+                self.nodeList.append(newNode)
+                print("nNodelist:", len(self.nodeList))
 
-            # check goal
-            dx = newNode.x - self.end.x
-            dy = newNode.y - self.end.y
-            d = math.sqrt(dx * dx + dy * dy)
-            if d <= self.expandDis:
-                print("Goal!!")
-                break
-
-
-            if animation:
-                self.DrawGraph(rnd)
+                # check goal
+                dx = newNode.x - self.end.x
+                dy = newNode.y - self.end.y
+                d = math.sqrt(dx * dx + dy * dy)
+                if d <= self.expandDis:
+                    print("Goal!!")
+                    break
 
 
-#straight line check
-            if d > self.expandDis:
-                st_count=self.st_linecheck(newNode,d)
-                if st_count!=0:
-            	       break
+                if animation:
+                    self.DrawGraph(rnd)
 
+
+    #straight line check
+                if d > self.expandDis:
+                    st_count=self.st_linecheck(newNode,d)
+                    if st_count!=0:
+                	       break
+        else:
+            self.DrawGraph()
         path = [[self.end.x, self.end.y]]
         lastIndex = len(self.nodeList) - 1
         while self.nodeList[lastIndex].parent is not None:
@@ -150,17 +147,19 @@ class RRT():
             ax = fig.add_subplot(111)
             poly_patch = PolygonPatch(poly)
             ax.add_patch(poly_patch)
-        plt.plot(self.start.x, self.start.y, "xr")
-        plt.plot(self.end.x, self.end.y, "xr")
-        plt.axis([-2, 15, -2, 15])
-        plt.grid(True)
-        plt.pause(0.000000000000000000000000001)
+        # plt.plot(self.start.x, self.start.y, "xr")
+        # plt.plot(self.end.x, self.end.y, "xr")
+        # plt.axis([-2, 15, -2, 15])
+        # plt.grid(True)
+        # plt.pause(0.000000000000000000000000001)
+        # plt.pause(5)
 
     def GetNearestListIndex(self, nodeList, rnd):
         dlist = [(node.x - rnd[0]) ** 2 + (node.y - rnd[1])
                  ** 2 for node in nodeList]
         minind = dlist.index(min(dlist))
         return minind
+
     @staticmethod
     def CollisionCheck(node, obstacleList, obstacleList2):
 
@@ -196,64 +195,66 @@ def final_path(f_path_i,ol1,ol2):
     f_path_o=[]
     f_path_o.append(f_path_i[0])
     f_path_i_len=len(f_path_i)
-    min_in=0.1
-    temp=0
+    if f_path_i_len<5:
+        return f_path_i
+    # temp=1
     current_index=0
-    while current_index < (len(f_path_i)):
-        if current_index==f_path_i_len-1 :
-            break
-        cu_y=f_path_i[current_index][1]
-        cu_x=f_path_i[current_index][0]
-        for check_index in range(current_index+1,f_path_i_len):
-            ch_x=f_path_i[check_index][0]
-            ch_y=f_path_i[check_index][1]
-            alpha=math.atan2(ch_y-cu_y,ch_x-cu_x)
-            sin=math.sin(alpha)
-            cos=math.cos(alpha)
-            f_dist=math.sqrt((ch_y-cu_y)**2+(ch_x-cu_x)**2)
-            f_iter=int(f_dist/min_in)
-            col_check=0
-            for k in range(1,f_iter+1):
-                f_x=cu_x+min_in*k*cos
-                f_y=cu_y+min_in*k*sin
-                f_node=Node(f_x,f_y)
-                if not RRT.CollisionCheck(f_node,ol1,ol2):
-                    col_check+=1
+    ob=[Polygon(list(x)) for x in ol2]
+    # for p in ob:
+        # print (list((p.exterior.coords)))
+
+    while current_index < f_path_i_len-2:
+
+        # print("in while")
+        for temp in range(current_index+1,f_path_i_len-1):
+
+            flag=0
+            # print(current_index)
+
+            line_check=LineString([(f_path_i[temp][0],f_path_i[temp][1]),(f_path_i[current_index][0],f_path_i[current_index][1])])
+            # print(line_check.length)
+            for obst in ob:
+                if line_check.intersects((obst)):
+                    # print("obstacle")
+                    if temp==current_index+1:
+                        temp2=temp
+                    flag=1
                     break
-            if col_check==0:
-                temp=check_index
-        f_path_o.append(f_path_i[temp])
-        current_index=temp
-        temp=temp+1
+            if flag==0:
+                temp2=temp
+
+        f_path_o.append([f_path_i[temp2][0],f_path_i[temp2][1]])
+        current_index=temp2
+    f_path_o.append(f_path_i[-1])    #     break# f_path_o.append(f_path_i[-1])
     return f_path_o
 
 
 def do_RRT(obstacleList2, show_animation, start_point_coors , end_point_coors):
     print("start simple RRT path planning")
+#	obstacleList=[]
 
-    
     # ====Search Path with RRT====
     obstacleList = [
-        (5, 5, 0),
-    ]  # [x,y,size]
+         (5, 5, 0),
+     ]  # [x,y,size]
+    # obstacleList=[]
+    obstacleList2=obstacleList2
+    
+    # obstacleList2 = [
+          # ((1.7071067811865475, 0.29289321881345254), (2.7071067811865475, 1.2928932188134525), (3.7071067811865475, 2.2928932188134525), (2.2928932188134525, 3.7071067811865475), (1.2928932188134525, 2.7071067811865475), (0.2928932188134524, 1.7071067811865475))
+     # ]
     
 
-    '''
-    obstacleList2 = [
-         ((1.7071067811865475, 0.29289321881345254), (2.7071067811865475, 1.2928932188134525), (3.7071067811865475, 2.2928932188134525), (2.2928932188134525, 3.7071067811865475), (1.2928932188134525, 2.7071067811865475), (0.2928932188134524, 1.7071067811865475))
-    ]
-    '''
-    
-    
+
 
 
     # Set Initial parameters
     rrt = RRT(start= start_point_coors, goal= end_point_coors,
-              randArea=[-2, 15], obstacleList= obstacleList, obstacleList2=obstacleList2)
-    path = rrt.Planning(animation=show_animation)
+              randArea=[-5, 5], obstacleList= obstacleList, obstacleList2=obstacleList2)
+    path = rrt.Planning(animation=True)
     path_in=list(reversed(path[:]))
     final_path_r=final_path(path_in,obstacleList,obstacleList2)
-    final_path_r = [tuple(coors) for coors in final_path_r]    
+    final_path_r = [tuple(coors) for coors in final_path_r]
     print("this is final path ->")
     print(final_path_r)
     return final_path_r
@@ -270,7 +271,7 @@ def do_RRT(obstacleList2, show_animation, start_point_coors , end_point_coors):
         plt.show()
 
 
-if __name__ == '__main__':
-    start = time.time()
-    p = do_RRT(show_animation = True , start_point_coors = [0 , 0] , end_point_coors = [5 , 10] , obstacleList2 = [((1,1), (3,3), (1,3)) , (((5,4), (4,4), (4,5), (5,6)))])
-    print(time.time() - start)
+# if __name__ == '__main__':
+#     start = time.time()
+#     do_RRT(show_animation = True , start_point_coors = [1 , 0] , end_point_coors = [5 , 10] , obstacleList2 = [((1.7071067811865475, 0.29289321881345254), (2.7071067811865475, 1.2928932188134525), (3.7071067811865475, 2.2928932188134525), (2.2928932188134525, 3.7071067811865475), (1.2928932188134525, 2.7071067811865475), (0.2928932188134524, 1.7071067811865475)),((1,1),(2,2),(1,2))])#((1,1), (3,3), (1,3)) , (((5,4), (4,4), (4,5), (5,6)))])
+#     print(time.time() - start)
