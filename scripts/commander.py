@@ -35,6 +35,7 @@ class Current():
 
         
         self.path_pub = rospy.Publisher("final_path", Float32MultiArray, queue_size = 10)
+        self.full_pub = rospy.Publisher("full_path", Float32MultiArray, queue_size = 10)
         self.odometry_sub = rospy.Subscriber("odom", Odometry, self.odom_update)
         self.obstacle_sub = rospy.Subscriber("tp5xy5", PolygonArray, self.update_obst_list)
         self.gp_sub = rospy.Subscriber("/Global_Waypoint", Float32MultiArray, self.gb_path)
@@ -51,7 +52,7 @@ class Current():
         '''checks if bot reached target'''
         if((self.curr_pos[0]-self.rel_path[self.gp_counter][0])**2 + (self.curr_pos[1]-self.rel_path[self.gp_counter][1])**2)<0.05:
             print("reached-->"+str(self.curr_pos[0])+","+str(self.curr_pos[1]))
-            print self.gp_counter
+            # print self.gp_counter
             if((len(self.rel_path))>(self.gp_counter+1)):
                 self.gp_counter+=1
 
@@ -68,7 +69,7 @@ class Current():
 
     def main_response(self):
        	"""Updates goal position and calls rrt."""
-        self.rel_path = dri.rrtst.do_RRT(obstacleList2=self.obstacle_list, show_animation = False, start_point_coors = self.curr_pos, end_point_coors = self.curr_target)
+        self.rel_path = dri.rrtst.do_RRT(obstacleList2=self.obstacle_list, show_animation = True, start_point_coors = self.curr_pos, end_point_coors = self.curr_target)
         self.prev_target = self.curr_target
         self.target_changed = True
         self.gp_counter=0
@@ -81,15 +82,15 @@ class Current():
         self.obstacle_list = []
         for i in data.polygons:
             points_list = [(j.x, j.y) for j in i.polygon.points]
-            print points_list
+            # print points_list
             self.obstacle_list.append(Polygon(points_list))
-        print self.obstacle_list
+        # print self.obstacle_list
 
 
     def dynamic_caller(self):
         """Call dynamic checker while en route"""
         dynamic_rel_path = self.rel_path
-        print self.obstacle_list
+        # print self.obstacle_list
         # if not self.target_changed:
         dynamic_rel_path = dri.dynamic_rrt(start = self.curr_pos, end =self.curr_target, path = self.rel_path, obstacle_list = self.obstacle_list)
         if(self.rel_path != dynamic_rel_path):

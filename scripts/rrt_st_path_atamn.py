@@ -7,7 +7,7 @@ import random
 import math
 import copy
 import time
-
+# import rospy
 from shapely.geometry import Polygon
 from shapely.geometry import Point,LineString
 from descartes import PolygonPatch
@@ -15,6 +15,7 @@ from descartes import PolygonPatch
 
 #show_animation = False
 
+THR = 0.8
 
 class RRT():
     """
@@ -22,7 +23,7 @@ class RRT():
     """
 
     def __init__(self, start, goal, obstacleList, obstacleList2,
-                 randArea, expandDis=1.0, goalSampleRate=15, maxIter=500,mnl=0.01):
+                 randArea, expandDis=0.1, goalSampleRate=15, maxIter=100,mnl=0.01):
         """
         Setting Parameter
         start:Start Position [x,y]
@@ -40,6 +41,7 @@ class RRT():
         self.obstacleList = obstacleList
         self.obstacleList2 = obstacleList2
         self.mnl=mnl
+        # self.point_pub = rospy
 
     def st_linecheck(self,newNode,d):
         line=LineString([(self.end.x,self.end.y),(newNode.x,newNode.y)])
@@ -47,12 +49,12 @@ class RRT():
         ob = Polygon()
         for x in self.obstacleList2:
             ob = Polygon(x) 
-            print "???/////////////////////////"
-            print ob
+            # print "???/////////////////////////"
+            # print ob
             if line.intersects(ob):
-                print "intersects"
+                # print "intersects"
                 return 0
-            print "free"
+            # print "free"
         return 1
 
 
@@ -91,7 +93,7 @@ class RRT():
                     continue
 
                 self.nodeList.append(newNode)
-                print("nNodelist:", len(self.nodeList))
+                # print("nNodelist:", len(self.nodeList))
 
                 # check goal
                 dx = newNode.x - self.end.x
@@ -100,7 +102,8 @@ class RRT():
                 if d <= self.expandDis:
                     print("Goal!!")
                     break
-
+                # if d <= THR:
+                #     break
 
                 if animation:
                     self.DrawGraph(rnd)
@@ -108,9 +111,10 @@ class RRT():
 
     #straight line check
                 if d > self.expandDis:
-                    st_count=self.st_linecheck(newNode,d)
-                    if st_count!=0:
-                	       break
+                    if True:
+                        st_count=self.st_linecheck(newNode,d)
+                        if st_count!=0:
+                    	       break
         else:
             self.DrawGraph()
         path = [[self.end.x, self.end.y]]
@@ -196,7 +200,8 @@ def final_path(f_path_i,ol1,ol2):
         return f_path_i
     # temp=1
     current_index=0
-    ob=[Polygon(list(x)) for x in ol2]
+    # ob=[Polygon(list(x)) for x in ol2]
+    ob = ol2
     # for p in ob:
         # print (list((p.exterior.coords)))
 
